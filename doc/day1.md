@@ -130,8 +130,76 @@ func (u *user) rename(newName string) {
 使用函数的返回值处理异常
 - 标准库：字符串-strings包；格式化字符串-Printf()方法；JSON-encoding/json包；时间-time包；数字字符串转换-strconv包；进程信息-os包
 # 4.实践练习
+- 修改猜谜游戏里得最终代码，使用 fmt.Scanf 来简化代码实现
+
+
+使用 Scanf 读取标准输入省略了从标准输入建立只读流的步骤，也可以直接读取数字
+ ```go
+    var guess int
+        _, err := fmt.Scanf("%d", &guess)
+        if err != nil {
+           fmt.Println("An error occured while reading guess. Please try again", err)
+           continue
+        }
+ ```
+- 修改命令行词典里面的最终代码，增加另一种翻译引擎的支持
+
+选择火山翻译抓包并生成代码，需注意，不同的翻译引擎的请求和返回的数据结构是不一样的，所以不仅需要建立不同的结构体，还要多多注意输出细节。而且常见的翻译引擎api都需要注册并在发送请求时通过签名认证，所以这里火山引擎的地址可能多次使用会失效。
+```go
+// 抓取到的火山引擎请求地址中带有签名，可能用多了会失效
+req, err := http.NewRequest("POST", "https://translate.volcengine.com/web/dict/detail/v1/?msToken=&X-Bogus=DFSzswVLQDcEkLCWSZZYMxewyPWe&_signature=_02B4Z6wo00001T6tJMQAAIDDN5XM6gE7cLE-rSBAACxxNbak0q2E4bm98d1HXINzJ6Ks0-XEgal0ju8Zkp8Ou-tnjOTrivttijXqU6D5KmnL0hb5hEJpC8VbFQsJXwQgHyFizRvrO.-0ny-83a", data)
+
+```
+火山引擎的响应里，把一个 JSON 作为字符串设为另一个 JSON 的一个值，所以要调用两次 Unmarshal 进行反序列化。代码结构与执行结果如图
+
+![QQ截图20230116194629.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/3b96f655167f45e797b2314330fc731f~tplv-k3u1fbpfcp-watermark.image?)
+- 在前者基础上，并行两个翻译引擎来提高相应速度
+
+使用两个channel, select 选择先接收到结果的通道进行输出
+```
+// 修改 query 函数, 增加入参 ch， 并把结果传入 ch
+	result := fmt.Sprintln("----------火山----------")
+	result += fmt.Sprintf("%s UK: [%s] US: [%s]\n", word, detail.Result[0].Ec.Basic.UkPhonetic, detail.Result[0].Ec.Basic.UsPhonetic)
+	for _, explain := range detail.Result[0].Ec.Basic.Explains {
+		result += fmt.Sprintln(explain.Pos, explain.Trans)
+	}
+	ch <- result
+// 修改 main 函数，用通道进行并行
+	ch1 := make(chan string)
+	ch2 := make(chan string)
+	go queryCaiyun(word, ch1)
+	go queryVolc(word, ch2)
+	select {
+	case caiyunRes := <-ch1:
+		fmt.Println(caiyunRes)
+	case volcRes := <-ch2:
+		fmt.Println(volcRes)
+	}
+
+```
+执行效果如下：多执行几次可以看到会出现不同引擎的结果
+
+![QQ图片20230116201429.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0c3b2aafb4a5405baf1554ef6f7f2de4~tplv-k3u1fbpfcp-watermark.image?)
+
+以上的代码均已提交至 https://github.com/BloodSid/go-by-example
+
+## 扩展：
+- 安装 命令行字典
+
+
+除了用 go run 来执行 go 程序，也可以直接把 go 程序编译成二进制文件用于执行。更进一步的是，还可以通过 go install 把 go 程序直接安装在 GOBIN 下,这样就可以在任意位置执行该程序了（GOBIN 要在 PATH 环境变量之中）
+
+1. 在simpledict/v4 目录下创建 go.mod 文件写入模块名。
+2. go install 模块名
+3. 模块名 word 即可在命令行使用
+
+
+![2023-01-16 12-05-18 的屏幕截图.png](https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/de54533b0f1b4256ab700223d666592c~tplv-k3u1fbpfcp-watermark.image?)
+
 
 # 5.总结
-
+经过学习和实战，的确体会到 go 语言的语法是非常方便，对于格式很考究，标准库对开发的支持非常到位。
 # 6.Ref
 - fallthrough 的用法例子： git@github.com:GoesToEleven/GolangTraining.git
+- [JSON转换go struct 工具](https://oktools.net/json2go)
+- [curl转换go 工具](https://curlconverter.com/go/)
