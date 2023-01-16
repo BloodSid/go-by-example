@@ -137,7 +137,7 @@ type VolcDetail struct {
 	} `json:"result"`
 }
 
-func queryCaiyun(word string) {
+func queryCaiyun(word string, ch chan string) {
 	client := &http.Client{}
 	request := CaiyunDictRequest{TransType: "en2zh", Source: word}
 	buf, err := json.Marshal(request)
@@ -184,14 +184,15 @@ func queryCaiyun(word string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("----------彩云----------")
-	fmt.Println(word, "UK:", dictResponse.Dictionary.Prons.En, "US:", dictResponse.Dictionary.Prons.EnUs)
+	result := fmt.Sprintln("----------彩云----------")
+	result += fmt.Sprintln(word, "UK:", dictResponse.Dictionary.Prons.En, "US:", dictResponse.Dictionary.Prons.EnUs)
 	for _, item := range dictResponse.Dictionary.Explanations {
-		fmt.Println(item)
+		result += fmt.Sprintln(item)
 	}
+	ch <- result
 }
 
-func queryVolc(word string) {
+func queryVolc(word string, ch chan string) {
 	client := &http.Client{}
 	request := VolcRequest{Source: "youdao", Words: []string{word}, SourceLanguage: "en", TargetLanguage: "zh"}
 	buf, err := json.Marshal(request)
@@ -239,11 +240,13 @@ func queryVolc(word string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("----------火山----------")
-	fmt.Printf("%s UK: [%s] US: [%s]\n", word, detail.Result[0].Ec.Basic.UkPhonetic, detail.Result[0].Ec.Basic.UsPhonetic)
+
+	result := fmt.Sprintln("----------火山----------")
+	result += fmt.Sprintf("%s UK: [%s] US: [%s]\n", word, detail.Result[0].Ec.Basic.UkPhonetic, detail.Result[0].Ec.Basic.UsPhonetic)
 	for _, explain := range detail.Result[0].Ec.Basic.Explains {
-		fmt.Println(explain.Pos, explain.Trans)
+		result += fmt.Sprintln(explain.Pos, explain.Trans)
 	}
+	ch <- result
 }
 
 func main() {
@@ -254,6 +257,15 @@ example: simpleDict hello
 		os.Exit(1)
 	}
 	word := os.Args[1]
-	queryCaiyun(word)
-	queryVolc(word)
+	ch1 := make(chan string)
+	ch2 := make(chan string)
+	go queryCaiyun(word, ch1)
+	go queryVolc(word, ch2)
+	select {
+	case caiyunRes := <-ch1:
+		fmt.Println(caiyunRes)
+	case volcRes := <-ch2:
+		fmt.Println(volcRes)
+	}
+
 }
