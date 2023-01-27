@@ -95,12 +95,23 @@ go test \[文件] --cover
 - repository 数据层：外部数据的增删改查，如数据库的数据，封装外部的数据操作，对逻辑层透明
 - service 逻辑层：处理核心业务逻辑,计算打包业务实体entity并供给视图层
 - controller 视图层：处理和外部的交互逻辑，以view 对象形式返回给客户端。
-# 4.总结
+
+# 4.扩展
+pprof 是一种可视化和分析剖面数据的工具。结合使用bench test 和 pprof 可以可视化检查函数的性能。步骤如下
+```
+// 执行测试，测试名支持正则
+go test -bench=<测试名> -cpuprofile cpu.out
+// 使用可视化工具在网页中查看输出文件 cpu.out 中的结果
+go tool pprof -http 0.0.0.0:9000 cpu.out
+```
+用浏览器打开端口9000上的网页可看到测试得到的热点-调用图和火焰图
+
+# 5.总结
 - go 为并发提供了协程这一强大的工具，正确使用go roution 可以充分发挥多核处理器的优势。
 - go 最新的依赖管理方法是 go modules，其对应的依赖管理三要素分别是 1. 配置文件，依赖描述： go.mod；2. 中心仓库管理依赖库 go proxy; 3. 本地工具 go get/mod
 - 单元测试是开发阶段，开发者对代码的“单元”进行的功能验证。衡量测试套件的完备性的一个指标是代码覆盖率。设计单元测试时，要求测试分支相互独立，全面覆盖，同时也促进开发者把测试单元的粒度设计的更小，促进了单一职责设计原则的实行。这样就有助于提高代码覆盖率。
 - 项目实践中应用了需求分析，用例图，ER-图等技术，设计了数据层，逻辑层，视图层的分层结构。利用 Gin 框架提供http服务实现需求。
-# 5.Ref
+# 6.Ref
 -   锁Lock [pkg.go.dev/sync](https://pkg.go.dev/sync)
 -   线程同步WaitGroup [pkg.go.dev/sync](https://pkg.go.dev/sync)
 -   Go Module : [go.dev/blog/using-…](https://go.dev/blog/using-go-modules")
